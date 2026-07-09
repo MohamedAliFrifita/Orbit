@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://orbit:orbit@localhost:5432/orbit"
     redis_url: str = "redis://localhost:6379/0"
-    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
     enrichment_api_key: str = ""
     email_provider_api_key: str = ""
     env: str = "development"
