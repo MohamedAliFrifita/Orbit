@@ -1,33 +1,19 @@
 """
-Analyst — recupere/parse la liste d'exposants d'un evenement selectionne.
+Analyst - recupere/parse la liste d'exposants d'un evenement selectionne.
 
-SEMAINE 1 : donnees mockees, aucun scraping reel.
-SEMAINE 2 : brancher `tools.fetch_exhibitor_list` + `tools.enrich_company`.
+SEMAINE 2 : branche sur le vrai tool fetch_exhibitor_list (voir Objectif 1/2).
+Cas de test choisi : SEPEM Douai 2026 (site en HTML statique - voir la note
+dans tools/fetch_exhibitor_list.py pour le detail du choix).
+
+Les erreurs (site injoignable, parsing qui ne trouve rien) remontent sous forme
+de ExhibitorFetchError, geree par l'orchestrateur (Option A - retour au choix
+d'evenement, voir orchestrator/run.py).
 """
 
 from orbit.schemas.exhibitor import ExhibitorInput
 from orbit.schemas.run import SelectedEvent
+from orbit.tools.fetch_exhibitor_list import fetch_exhibitor_list
 
 
 async def run(event: SelectedEvent) -> list[ExhibitorInput]:
-    # TODO(semaine 2): remplacer par un vrai scraping/parsing du catalogue d'exposants
-    return [
-        ExhibitorInput(
-            id="ex_001",
-            name="Example Corp",
-            booth="Hall 4 - B22",
-            raw_description="Fabricant de systemes d'automatisation industrielle, 200+ employes.",
-        ),
-        ExhibitorInput(
-            id="ex_002",
-            name="Concurrent SA",
-            booth="Hall 2 - A10",
-            raw_description="Editeur de logiciels de supervision industrielle.",
-        ),
-        ExhibitorInput(
-            id="ex_003",
-            name="Composants Plus",
-            booth="Hall 4 - C05",
-            raw_description="Distributeur de composants electroniques pour l'industrie.",
-        ),
-    ]
+    return await fetch_exhibitor_list(event)

@@ -1,0 +1,33 @@
+<!--
+Fixture basee sur la structure reelle de https://douai.sepem-industries.com/content/liste-des-exposants
+(version simplifiee, extrait de quelques exposants reels, pour tester le parsing sans appel reseau)
+
+NOTE IMPORTANTE : cette structure HTML (balises <li class="exhibitor-item">...) est une
+RECONSTRUCTION PLAUSIBLE, pas une copie exacte du DOM reel. Avant de coder contre le vrai site,
+va sur la page avec ton navigateur, fais clic-droit -> "Inspecter" sur un nom d'exposant,
+et ajuste les selecteurs CSS dans fetch_exhibitor_list.py si necessaire.
+Le parseur ci-dessous fonctionne surtout par extraction de TEXTE (regex), pas par selecteur CSS
+precis, justement pour rester robuste meme si la structure exacte des balises differe un peu.
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head><title>Liste des exposants</title></head>
+<body>
+  <main>
+    <h1>Les exposants de SEPEM Douai 2026</h1>
+    <p><em>Liste au 19/03/2025</em></p>
+    <ul class="exhibitor-list">
+      <li class="exhibitor-item">2ADIS Grand palais - Stand B26</li>
+      <li class="exhibitor-item">3 AXES SASGrand palais - Stand G32</li>
+      <li class="exhibitor-item">4GLGrand palais - Stand H82</li>
+      <li class="exhibitor-item">ABA VULCAGrand palais - Stand E69</li>
+      <li class="exhibitor-item">AMITECGrand palais - Stand</li>
+      <li class="exhibitor-item">ATIPIK 3D PRINT - Stand</li>
+      <li class="exhibitor-item">BFR SYSTEMSNovaxia bas - Stand B112</li>
+      <li class="exhibitor-item">KIO SOFTWAREGrand palais - Stand C104,B55</li>
+      <li class="exhibitor-item">COGNEX INTERNATIONAL INCGrand palais - Stand E64</li>
+      <li class="exhibitor-item">FARO FRANCEGrand palais - Stand A50</li>
+    </ul>
+  </main>
+</body>
+</html>
