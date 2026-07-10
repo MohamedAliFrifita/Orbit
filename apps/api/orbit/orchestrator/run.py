@@ -3,17 +3,18 @@ Orchestrateur — sequence les stages du run ORBIT.
 
 SEMAINE 1 : chaque stage s'execute de maniere synchrone dans le meme process,
             les stages appellent des agents qui renvoient des donnees mockees.
-SEMAINE 2+ : chaque stage devient une tache de queue asynchrone separee
-            (voir orbit-coding-guide.md §7 - discussion RQ/Celery), ce qui permet
-            de survivre a un redemarrage serveur et de ne pas bloquer la requete HTTP.
-
-Pour l'instant, `advance()` fait avancer le run d'un seul stage a chaque appel -
-c'est volontaire : ca permet de tester chaque transition independamment,
-et ca correspond deja a la forme qu'aura chaque tache de queue plus tard.
+SEMAINE 2 : Scout et Analyst appellent maintenant de vrais tools (recherche web,
+            scraping). L'echec de l'Analyst (Objectif 4, Option A) ne fait pas
+            planter le run : il renvoie l'utilisateur au choix d'evenement avec
+            un message d'erreur clair, plutot que de basculer silencieusement
+            vers un autre evenement ou de laisser le run dans un etat casse.
+SEMAINE 3+ : chaque stage devient une tache de queue asynchrone separee
+            (voir orbit-coding-guide.md §7).
 """
 
 from orbit.agents import analyst, classifier, planner, scout
 from orbit.schemas.run import RunStage, RunState, SelectedEvent
+from orbit.tools.fetch_exhibitor_list import ExhibitorFetchError
 
 
 class InvalidTransition(Exception):
@@ -39,9 +40,24 @@ async def advance(state: RunState) -> RunState:
         case RunStage.ANALYST:
             if state.selected_event is None:
                 raise InvalidTransition("Aucun evenement selectionne.")
-            raw_exhibitors = await analyst.run(state.selected_event)
+
+            try:
+                raw_exhibitors = await analyst.run(state.selected_event)
+            except ExhibitorFetchError as exc:
+                # Option A : on ne bloque pas le run et on ne bascule pas
+                # silencieusement vers un autre evenement - on redonne la main
+                # a l'utilisateur, qui reste seul decideur de l'evenement choisi.
+                state.error = str(exc)
+                state.candidate_events = [
+                    e for e in state.candidate_events if e.name != state.selected_event.name
+                ]
+                state.selected_event = None
+                state.stage = RunStage.AWAITING_SELECTION
+                return state
+
             state.raw_exhibitor_count = len(raw_exhibitors)
             state.raw_exhibitors = raw_exhibitors
+            state.error = None
             state.stage = RunStage.CLASSIFIER
 
         case RunStage.CLASSIFIER:
