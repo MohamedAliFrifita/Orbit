@@ -1,30 +1,18 @@
 """
-Scout — identifie les evenements pertinents pour un secteur/objectif donne.
+Scout - identifie les evenements pertinents pour un secteur/objectif donne.
 
-SEMAINE 1 : donnees mockees, aucun appel externe.
-SEMAINE 2 : brancher `tools.search_events` (recherche web / API d'annuaire d'evenements).
+SEMAINE 2 : branche sur le vrai tool search_events (Gemini 2.5 Flash + google_search).
+Voir orbit/tools/search_events.py pour le detail des decisions d'AI engineering
+(modele, contrainte JSON, anti-hallucination).
+
+Les erreurs (reponse invalide apres re-prompt, aucun evenement trouve) remontent
+sous forme de EventSearchError, geree par l'orchestrateur (meme pattern Option A
+que ExhibitorFetchError - voir orchestrator/run.py).
 """
 
 from orbit.schemas.run import EventCandidate, RunInput
+from orbit.tools.search_events import search_events
 
 
 async def run(run_input: RunInput) -> list[EventCandidate]:
-    # TODO(semaine 2): remplacer par un vrai appel a tools.search_events(run_input)
-    return [
-        EventCandidate(
-            name="Global Industrie 2026",
-            dates="2026-09-15/18",
-            location="Lyon, FR",
-            exhibitor_count=850,
-            source_url="https://example.com/global-industrie",
-            relevance_note=f"Correspond au secteur '{run_input.sector}' en {run_input.region}",
-        ),
-        EventCandidate(
-            name="SIDO Lyon 2026",
-            dates="2026-10-05/06",
-            location="Lyon, FR",
-            exhibitor_count=300,
-            source_url="https://example.com/sido",
-            relevance_note="Salon IoT/automatisation, plus petit mais cible",
-        ),
-    ]
+    return await search_events(run_input)

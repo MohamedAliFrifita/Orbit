@@ -42,6 +42,7 @@ class SelectedEvent(BaseModel):
     dates: str
     location: str
     exhibitor_count: int
+    source_url: str | None = None
 
 
 class RunStage(str, Enum):

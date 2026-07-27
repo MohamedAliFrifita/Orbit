@@ -15,6 +15,7 @@ SEMAINE 3+ : chaque stage devient une tache de queue asynchrone separee
 from orbit.agents import analyst, classifier, planner, scout
 from orbit.schemas.run import RunStage, RunState, SelectedEvent
 from orbit.tools.fetch_exhibitor_list import ExhibitorFetchError
+from orbit.tools.search_events import EventSearchError
 
 
 class InvalidTransition(Exception):
@@ -29,7 +30,17 @@ async def advance(state: RunState) -> RunState:
     """
     match state.stage:
         case RunStage.SCOUT:
-            state.candidate_events = await scout.run(state.input)
+            try:
+                state.candidate_events = await scout.run(state.input)
+            except EventSearchError as exc:
+                # Meme pattern Option A que l'Analyst (voir case ANALYST plus bas) :
+                # le run reste au stage SCOUT, message d'erreur clair, aucune
+                # liste vide silencieuse. L'utilisateur (ou le prochain appel a
+                # /advance) peut alors reessayer.
+                state.error = str(exc)
+                return state
+
+            state.error = None
             state.stage = RunStage.AWAITING_SELECTION
 
         case RunStage.AWAITING_SELECTION:
@@ -76,11 +87,25 @@ async def advance(state: RunState) -> RunState:
 
 
 def select_event(state: RunState, event: SelectedEvent) -> RunState:
-    """Checkpoint humain : l'utilisateur choisit un evenement parmi candidate_events."""
+    """Checkpoint humain : l'utilisateur choisit un evenement parmi candidate_events.
+
+    Objectif 5 (chainage dynamique) : si event.source_url n'est pas deja fourni,
+    on tente de le retrouver dans candidate_events (celui que le Scout a propose)
+    en matchant sur le nom - evite que l'appelant de l'API ait a re-fournir une
+    URL que le Scout connait deja.
+    """
     if state.stage != RunStage.AWAITING_SELECTION:
         raise InvalidTransition(
             f"select_event() attendu au stage AWAITING_SELECTION, actuel={state.stage}"
         )
+
+    if event.source_url is None:
+        matching_candidate = next(
+            (c for c in state.candidate_events if c.name == event.name), None
+        )
+        if matching_candidate is not None:
+            event.source_url = matching_candidate.source_url
+
     state.selected_event = event
     state.stage = RunStage.ANALYST
     return state
