@@ -125,7 +125,11 @@ async def search_events(run_input: RunInput) -> list[EventCandidate]:
     # v2 : instructions renforcees sur source_url (doit cibler la page exposants
     # specifiquement, pas la page d'accueil - voir scout/v2.md pour le detail,
     # correctif suite au cas reel Hannover Messe ou v1 renvoyait la homepage)
-    system_prompt = load_prompt("scout", version="v2")
+    # v3 : priorite explicite au domaine officiel de l'evenement, evite les
+    # agregateurs tiers (10times, expocaptive...) - correctif suite au cas reel
+    # observe ou 3/5 URLs pointaient vers des sites d'annuaire plutot que le
+    # site organisateur officiel (voir orbit-contexte-semaine2.md)
+    system_prompt = load_prompt("scout", version="v3")
     config = _build_config(system_prompt)
 
     user_prompt = (
