@@ -129,7 +129,15 @@ async def search_events(run_input: RunInput) -> list[EventCandidate]:
     # agregateurs tiers (10times, expocaptive...) - correctif suite au cas reel
     # observe ou 3/5 URLs pointaient vers des sites d'annuaire plutot que le
     # site organisateur officiel (voir orbit-contexte-semaine2.md)
-    system_prompt = load_prompt("scout", version="v3")
+    # v4 : interdiction explicite de CONSTRUIRE une URL par pattern-completion
+    # (ex: domaine + "/exhibitors" invente) - correctif suite au cas reel ou
+    # le modele a invente un domaine entier n'existant pas
+    # (warsawindustryautomatica.com -> DNS_PROBE_FINISHED_NXDOMAIN) et 4 autres
+    # URLs plausibles mais 404 sur les vrais domaines officiels. Notre propre
+    # verification anti-hallucination (grounding_metadata) avait deja flagge
+    # les 5 evenements comme non confirmes - ce correctif vise a reduire la
+    # frequence de ce cas en amont, dans le prompt lui-meme.
+    system_prompt = load_prompt("scout", version="v4")
     config = _build_config(system_prompt)
 
     user_prompt = (
