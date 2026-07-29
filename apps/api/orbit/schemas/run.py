@@ -41,7 +41,7 @@ class SelectedEvent(BaseModel):
     name: str
     dates: str
     location: str
-    exhibitor_count: int
+    exhibitor_count: int | None = None 
     source_url: str | None = None
 
 

@@ -40,7 +40,17 @@ from orbit.config import settings
 from orbit.prompts import load_prompt
 from orbit.schemas.run import EventCandidate, RunInput
 
-MODEL_NAME = "gemini-2.5-flash"
+import os
+
+# Modele configurable via variable d'environnement pour faciliter les tests
+# empiriques. Historique de cette decision (voir orbit-contexte-semaine2.md) :
+# - Premiere tentative : erreur 404 "no longer available to new users" - s'est
+#   averee etre un faux negatif (probablement lie a l'initialisation du projet
+#   Google Cloud, pas un vrai blocage).
+# - Confirme via le dashboard aistudio.google.com/rate-limit : gemini-2.5-flash
+#   a un quota actif sur ce compte (5 RPM / 250K TPM / 20 RPD) avec des appels
+#   deja reussis - c'est le modele a utiliser.
+MODEL_NAME = os.environ.get("ORBIT_SCOUT_MODEL", "gemini-2.5-flash")
 
 _JSON_ARRAY_PATTERN = re.compile(r"\[.*\]", re.DOTALL)
 
@@ -112,7 +122,10 @@ async def search_events(run_input: RunInput) -> list[EventCandidate]:
     un essai de correction, ou si aucun evenement plausible n'est trouve.
     """
     client = _get_client()
-    system_prompt = load_prompt("scout", version="v1")
+    # v2 : instructions renforcees sur source_url (doit cibler la page exposants
+    # specifiquement, pas la page d'accueil - voir scout/v2.md pour le detail,
+    # correctif suite au cas reel Hannover Messe ou v1 renvoyait la homepage)
+    system_prompt = load_prompt("scout", version="v2")
     config = _build_config(system_prompt)
 
     user_prompt = (
