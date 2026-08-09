@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import re
 
-import httpx
+from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
@@ -85,14 +85,33 @@ async def fetch_exhibitor_list(event: SelectedEvent, url: str | None = None) -> 
     )
 
 
-async def _fetch_html(url: str) -> str:
+async def _render_page(url: str, timeout_ms: int = 20000) -> str:
+    """
+    Etape 1 et Etape 3 (Objectif 8) - charge une page avec un navigateur
+    headless et retourne le HTML final APRES execution du JavaScript.
+
+    Meme fonction utilisee pour la homepage et pour la page exposants
+    localisee ensuite - un seul chemin de code, coherent avec la strategie
+    unifiee (voir orbit-semaine2-guide.md, Objectif 8). Remplace _fetch_html
+    (httpx), qui ne rendait pas le JS et echouait donc silencieusement sur
+    les sites dynamiques (cas embedded-world.eu, hannovermesse.de).
+    """
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(url, follow_redirects=True)
-            response.raise_for_status()
-            return response.text
-    except httpx.HTTPError as exc:
-        raise ExhibitorFetchError(f"Impossible d'acceder a la page exposants ({url}): {exc}") from exc
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+            html = await page.content()
+            await browser.close()
+            return html
+    except PlaywrightTimeoutError as exc:
+        raise ExhibitorFetchError(
+            f"Timeout lors du chargement de {url} (page trop lente ou inaccessible)."
+        ) from exc
+    except Exception as exc:
+        raise ExhibitorFetchError(
+            f"Impossible de charger {url} avec le navigateur: {exc}"
+        ) from exc
 
 
 def _parse_exhibitors_static(html: str) -> list[ExhibitorInput]:
