@@ -25,6 +25,10 @@ from __future__ import annotations
 import json
 import re
 
+import asyncio
+
+from urllib.parse import urljoin
+
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 from google import genai
@@ -36,15 +40,9 @@ from orbit.prompts import load_prompt
 from orbit.schemas.exhibitor import ExhibitorInput
 from orbit.schemas.run import SelectedEvent
 
-SEPEM_DOUAI_URL = "https://douai.sepem-industries.com/content/liste-des-exposants"
 LLM_FALLBACK_MODEL = "gemini-2.5-flash"
 
-# Pattern observe sur SEPEM Douai : nom colle directement au lieu + " - Stand " + code
-_ENTRY_PATTERN = re.compile(
-    r"^(?P<name>.+?)"
-    r"(?:(?P<hall>Grand palais|Novaxia bas))?"
-    r"\s*-\s*Stand\s*(?P<stand>[A-Za-z0-9,]*)$"
-)
+
 
 
 class ExhibitorFetchError(Exception):
@@ -59,30 +57,10 @@ class ExhibitorFetchError(Exception):
 
     pass
 
+class ExhibitorLinkNotFoundError(ExhibitorFetchError):
+    """Etape 2c - aucun lien plausible vers la page exposants (heuristique + LLM ont echoue)."""
+    pass
 
-async def fetch_exhibitor_list(event: SelectedEvent, url: str | None = None) -> list[ExhibitorInput]:
-    """Pipeline a 3 niveaux - voir le docstring du module pour le detail de chaque etage."""
-    target_url = url or event.source_url or SEPEM_DOUAI_URL
-
-    html = await _fetch_html(target_url)
-
-    # Niveau 1 : parsing statique par regex (gratuit, rapide)
-    exhibitors = _parse_exhibitors_static(html)
-    if exhibitors:
-        return exhibitors
-
-    # Niveau 2 : fallback LLM (coute un appel Gemini)
-    exhibitors = await _parse_exhibitors_llm(html, target_url)
-    if exhibitors:
-        return exhibitors
-
-    # Niveau 3 : dernier recours
-    raise ExhibitorFetchError(
-        f"Aucun exposant trouve sur {target_url}, ni par parsing statique ni par "
-        "extraction LLM - le contenu est probablement genere par JavaScript "
-        "(site a rendu dynamique, cas non gere actuellement - voir Playwright "
-        "comme prochaine etape si ce cas se confirme)."
-    )
 
 
 async def _render_page(url: str, timeout_ms: int = 20000) -> str:
@@ -114,123 +92,98 @@ async def _render_page(url: str, timeout_ms: int = 20000) -> str:
         ) from exc
 
 
-def _parse_exhibitors_static(html: str) -> list[ExhibitorInput]:
-    """Niveau 1 - voir _ENTRY_PATTERN pour le detail du pattern SEPEM Douai."""
+_EXHIBITOR_KEYWORDS = [
+    "exhibitor", "exhibitors", "exhibitor list", "exhibitor directory", "find exhibitors",
+    "exposant", "exposants", "liste des exposants",
+    "aussteller", "ausstellerliste",
+    "expositor", "expositores",
+    "wystawcy", "lista wystawcow",
+    "vystavovatel", "vystavovatele",
+]
+
+
+def _extract_links(html: str, base_url: str) -> list[dict]:
+    """Etape 1 (suite) - extrait tous les liens de la page rendue, URL resolues en absolu."""
     soup = BeautifulSoup(html, "html.parser")
-    candidates = soup.select("li") or soup.select("p")
-
-    exhibitors: list[ExhibitorInput] = []
-    seen_ids: set[str] = set()
-
-    for i, el in enumerate(candidates):
-        text = el.get_text(strip=True)
-        match = _ENTRY_PATTERN.match(text)
-        if not match:
-            continue
-
-        name = match.group("name").strip()
-        hall = match.group("hall") or ""
-        stand = match.group("stand") or ""
-
-        if not name:
-            continue
-
-        exhibitor_id = f"static_{i:04d}"
-        if exhibitor_id in seen_ids:
-            continue
-        seen_ids.add(exhibitor_id)
-
-        booth = f"{hall} - Stand {stand}".strip(" -") if (hall or stand) else None
-
-        exhibitors.append(
-            ExhibitorInput(id=exhibitor_id, name=name, booth=booth, raw_description=text)
-        )
-
-    return exhibitors
+    links = []
+    for a in soup.find_all("a", href=True):
+        text = a.get_text(strip=True)
+        if text:  # ignore les liens sans texte visible (icones, etc.)
+            links.append({"text": text, "href": urljoin(base_url, a["href"])})
+    return links
 
 
-def _clean_html_to_text(html: str) -> str:
+def _find_exhibitor_link_heuristic(links: list[dict]) -> str | None:
     """
-    Utilite (Decision 1) : supprime le bruit (scripts, styles, nav, footer,
-    header) avant l'envoi au LLM - economise des tokens sur un quota limite,
-    et concentre le signal utile pour l'extraction.
+    Etape 2a (tentee en premier) - filtre par mots-cles multilingues.
+    Retourne l'URL si UN SEUL lien correspond clairement. Renvoie None si
+    0 ou plusieurs matches - dans les deux cas, la decision est ambigue et
+    revient a l'Etape 2b plutot que d'etre tranchee arbitrairement ici.
     """
-    soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(["script", "style", "nav", "footer", "header"]):
-        tag.decompose()
-    return soup.get_text(separator="\n", strip=True)
+    matches = [
+        link for link in links
+        if any(kw in link["text"].lower() or kw in link["href"].lower() for kw in _EXHIBITOR_KEYWORDS)
+    ]
+    return matches[0]["href"] if len(matches) == 1 else None
 
 
-_EXTRACTION_SCHEMA = {
-    "type": "ARRAY",
-    "items": {
-        "type": "OBJECT",
-        "properties": {
-            "name": {"type": "STRING"},
-            "booth": {"type": "STRING", "nullable": True},
-        },
-        "required": ["name"],
-    },
+_LINK_CHOICE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {"chosen_href": {"type": "STRING", "nullable": True}},
+    "required": ["chosen_href"],
 }
 
 
-async def _parse_exhibitors_llm(html: str, source_url: str) -> list[ExhibitorInput]:
+async def _find_exhibitor_link_llm(links: list[dict]) -> str | None:
     """
-    Niveau 2 - utilise response_schema natif (Decision 2) : contrairement au
-    Scout, cette tache n'a pas besoin de google_search, donc pas de contrainte
-    d'incompatibilite - l'API garantit une sortie JSON conforme au schema,
-    pas besoin de re-prompt correctif (Decision 3).
+    Etape 2b (secours UNIQUEMENT) - n'est appelee que si l'heuristique n'a
+    pas tranche. Le LLM choisit exclusivement parmi les liens reellement
+    extraits (response_schema natif, pas de google_search donc pas de
+    contrainte d'incompatibilite comme pour le Scout).
     """
-    if not settings.gemini_api_key:
-        return []
+    if not settings.gemini_api_key or not links:
+        return None
 
-    cleaned_text = _clean_html_to_text(html)
-    # Limite de securite pour ne pas exploser le budget de tokens sur une page enorme
-    cleaned_text = cleaned_text[:20000]
+    system_prompt = load_prompt("analyst_link_finder", version="v1")
+    links_text = "\n".join(f"{i}: [{l['text']}]({l['href']})" for i, l in enumerate(links))
 
-    system_prompt = load_prompt("analyst", version="v1")
     client = genai.Client(api_key=settings.gemini_api_key)
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
         response_mime_type="application/json",
-        response_schema=_EXTRACTION_SCHEMA,
+        response_schema=_LINK_CHOICE_SCHEMA,
     )
-
-    import asyncio
 
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=LLM_FALLBACK_MODEL,
-            contents=cleaned_text,
+            contents=links_text,
             config=config,
         )
+        result = json.loads(response.text)
     except Exception:
-        # Echec de l'appel LLM lui-meme (quota, reseau...) -> on retombe sur
-        # le Niveau 3 (ExhibitorFetchError) plutot que de propager une erreur
-        # differente ici.
-        return []
+        return None
 
-    try:
-        raw_items = json.loads(response.text)
-    except (json.JSONDecodeError, TypeError):
-        return []
+    chosen = result.get("chosen_href")
+    # Securite : verifie que le LLM a bien choisi une URL de la liste fournie
+    # (response_schema garantit le FORMAT, pas que la valeur en fasse partie).
+    valid_hrefs = {link["href"] for link in links}
+    return chosen if chosen in valid_hrefs else None
 
-    exhibitors: list[ExhibitorInput] = []
-    for i, item in enumerate(raw_items):
-        try:
-            name = item["name"].strip()
-            if not name:
-                continue
-            exhibitors.append(
-                ExhibitorInput(
-                    id=f"llm_{i:04d}",
-                    name=name,
-                    booth=item.get("booth"),
-                    raw_description=f"[extrait par LLM depuis {source_url}]",
-                )
-            )
-        except (KeyError, AttributeError, ValidationError):
-            continue
 
-    return exhibitors
+async def _locate_exhibitor_page(homepage_html: str, homepage_url: str) -> str:
+    """Etape 2 complete : 2a -> 2b (si besoin) -> 2c (echec si rien ne ressort)."""
+    links = _extract_links(homepage_html, homepage_url)
+
+    target = _find_exhibitor_link_heuristic(links)
+    if target is None:
+        target = await _find_exhibitor_link_llm(links)
+
+    if target is None:
+        raise ExhibitorLinkNotFoundError(
+            f"Aucune page d'exposants localisee depuis {homepage_url} - "
+            "ni l'heuristique par mots-cles ni le LLM de secours n'ont trouve "
+            "de lien plausible parmi les liens reels de la page."
+        )
+    return target
