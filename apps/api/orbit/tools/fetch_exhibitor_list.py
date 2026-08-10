@@ -61,6 +61,9 @@ class ExhibitorLinkNotFoundError(ExhibitorFetchError):
     """Etape 2c - aucun lien plausible vers la page exposants (heuristique + LLM ont echoue)."""
     pass
 
+class AuthWallError(ExhibitorFetchError):
+    """Etape 4 - page protegee par authentification, hors perimetre actuel."""
+    pass
 
 
 async def _render_page(url: str, timeout_ms: int = 20000) -> str:
@@ -187,3 +190,28 @@ async def _locate_exhibitor_page(homepage_html: str, homepage_url: str) -> str:
             "de lien plausible parmi les liens reels de la page."
         )
     return target
+
+_AUTH_KEYWORDS = ["sign in", "log in", "login", "se connecter", "mot de passe", "password"]
+
+
+def _detect_auth_wall(html: str) -> bool:
+    """
+    Etape 4 - detection heuristique d'un mur d'authentification.
+
+    Signal fort : un champ password present -> peu de faux positifs.
+    Signal faible combine : mots-cles de connexion dominants sur un texte
+    par ailleurs tres court -> evite de declencher sur un simple lien "Login"
+    dans le menu d'un site par ailleurs riche en contenu.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    if soup.find("input", {"type": "password"}):
+        return True
+
+    text = soup.get_text(separator=" ", strip=True).lower()
+    if len(text) < 500:
+        hits = sum(1 for kw in _AUTH_KEYWORDS if kw in text)
+        if hits >= 2:
+            return True
+
+    return False
