@@ -1,0 +1,325 @@
+{
+  "eval_version": "v1",
+  "event": "SEPEM Douai 2026",
+  "icp": {
+    "target_client_profile": "Fabricants de lignes de production > 50 salaries, France",
+    "objectives": ["find_clients", "find_partners"]
+  },
+  "items": [
+    {
+      "exhibitor": {
+        "id": "sepem_001",
+        "name": "ABC Automatisme",
+        "booth": "Hall 5 - B22",
+        "raw_description": "Distributeur de materiel industriel, systemes de convoyage, secteur automobile et agroalimentaire",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "client",
+        "potential_score_range": [0.7, 1.0],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["convoyage", "agroalimentaire"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Profil ICP direct - fabrication de lignes de convoyage pour l'agroalimentaire"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_002",
+        "name": "TechSoft Solutions",
+        "booth": "Hall 3 - C10",
+        "raw_description": "Editeur de logiciels de supervision et pilotage de lignes de production industrielles",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "competitor",
+        "potential_score_range": [0.3, 0.6],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["logiciel", "supervision"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Editeur logiciel pilotage lignes - recoupe potentiellement l'offre ORBIT elle-meme, concurrent plausible"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_003",
+        "name": "MetalPro Distribution",
+        "booth": "Hall 2 - A15",
+        "raw_description": "Distributeur de composants electroniques et mecaniques pour l'industrie",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "supplier",
+        "potential_score_range": [0.4, 0.7],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["distributeur", "composants"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Distributeur de composants - fournisseur potentiel plutot que client"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_004",
+        "name": "IntegraLine Partners",
+        "booth": "Hall 4 - D30",
+        "raw_description": "Integrateur de solutions d'automatisation, partenariats avec fabricants de lignes de production",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "partner",
+        "potential_score_range": [0.5, 0.8],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["integrateur", "partenariat"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Integrateur complementaire, pas concurrent direct - partenariat de co-vente plausible"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_005",
+        "name": "SARL Martin",
+        "booth": "Hall 1 - E05",
+        "raw_description": "",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "irrelevant",
+        "potential_score_range": [0.0, 0.2],
+        "confidence_min": "low",
+        "rationale_must_mention": ["generique"],
+        "sources_used_must_include": []
+      },
+      "data_quality": "name_only",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Nom trop generique pour toute inference fiable - doit rester irrelevant, pas de sur-inference"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_infer_001",
+        "name": "Siemens",
+        "booth": null,
+        "raw_description": "[extrait par LLM depuis douai.sepem-industries.com/exposants]",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "competitor",
+        "potential_score_range": [0.4, 0.75],
+        "confidence_min": "low",
+        "rationale_must_mention": ["infere"],
+        "sources_used_must_include": ["model_inference"]
+      },
+      "data_quality": "name_only",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Teste la branche inference - le modele doit ne pas classer irrelevant sur une entreprise connue"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_infer_002",
+        "name": "Schneider Electric",
+        "booth": null,
+        "raw_description": "[extrait par LLM depuis douai.sepem-industries.com/exposants]",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "competitor",
+        "potential_score_range": [0.4, 0.75],
+        "confidence_min": "low",
+        "rationale_must_mention": ["infere"],
+        "sources_used_must_include": ["model_inference"]
+      },
+      "data_quality": "name_only",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Deuxieme cas inference sur entreprise connue - meme branche que sepem_infer_001"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_006",
+        "name": "AgroLine Fabrication",
+        "booth": "Hall 5 - B40",
+        "raw_description": "Fabricant de lignes de production pour l'industrie agroalimentaire, plus de 200 salaries",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "client",
+        "potential_score_range": [0.75, 1.0],
+        "confidence_min": "high",
+        "rationale_must_mention": ["fabricant", "lignes de production"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Match ICP quasi-exact (fabricant de lignes, >50 salaries) - devrait avoir un score eleve et confidence high"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_007",
+        "name": "PackLine Manufacturing",
+        "booth": "Hall 5 - B45",
+        "raw_description": "Fabricant de machines d'emballage et de conditionnement pour lignes de production industrielles",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "client",
+        "potential_score_range": [0.7, 1.0],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["fabricant", "emballage"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Fabricant proche du profil ICP, secteur adjacent (emballage plutot que production pure)"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_008",
+        "name": "CableTech Fournitures",
+        "booth": "Hall 2 - A22",
+        "raw_description": "Fournisseur de cables industriels et connectique pour equipements de production",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "supplier",
+        "potential_score_range": [0.4, 0.7],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["fournisseur", "cables"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Fournisseur de composants, pas un client potentiel"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_009",
+        "name": "ConseilPro RH",
+        "booth": "Hall 1 - F02",
+        "raw_description": "Cabinet de conseil en recrutement et ressources humaines pour l'industrie",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "irrelevant",
+        "potential_score_range": [0.0, 0.25],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["conseil", "ressources humaines"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Aucun lien strategique avec l'ICP (production/automatisation) - cabinet RH generique"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_010",
+        "name": "AutoLine Partners Integration",
+        "booth": "Hall 4 - D35",
+        "raw_description": "Partenaire certifie pour l'integration de solutions robotiques sur lignes de production existantes",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "partner",
+        "potential_score_range": [0.55, 0.85],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["partenaire", "integration"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Deuxieme cas partner, integrateur robotique complementaire"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_synth_001",
+        "name": "RivalTech Automation",
+        "booth": "Hall 3 - C25",
+        "raw_description": "Concurrent direct proposant des lignes de production cles en main pour l'agroalimentaire, meme segment de marche",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "competitor",
+        "potential_score_range": [0.3, 0.6],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["concurrent"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": true,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Exemple synthetique - complete la categorie competitor avec des donnees Analyst completes (SEPEM Douai reel n'en fournissait pas d'evident)"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_synth_002",
+        "name": "Generic Corp",
+        "booth": null,
+        "raw_description": "[extrait par LLM depuis douai.sepem-industries.com/exposants]",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "irrelevant",
+        "potential_score_range": [0.0, 0.2],
+        "confidence_min": "low",
+        "rationale_must_mention": ["generique"],
+        "sources_used_must_include": []
+      },
+      "data_quality": "name_only",
+      "synthetic": true,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Exemple synthetique - nom volontairement generique/inconnu meme sous inference, teste la branche irrelevant du cas name_only"
+    },
+    {
+      "exhibitor": {
+        "id": "sepem_011",
+        "name": "FluidTech Ingenierie",
+        "booth": "Hall 2 - A30",
+        "raw_description": "Fournisseur de systemes pneumatiques et hydrauliques pour equipements de production industriels",
+        "enrichment": null
+      },
+      "expected": {
+        "category": "supplier",
+        "potential_score_range": [0.4, 0.7],
+        "confidence_min": "medium",
+        "rationale_must_mention": ["fournisseur", "pneumatique"],
+        "sources_used_must_include": ["raw_description"]
+      },
+      "data_quality": "full",
+      "synthetic": false,
+      "labelled_by": "humain",
+      "label_date": "2026-08-15",
+      "notes": "Troisieme cas supplier, complete la distribution cible de la categorie"
+    }
+  ]
+}
