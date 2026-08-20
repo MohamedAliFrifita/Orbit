@@ -31,6 +31,7 @@ from urllib.parse import urljoin
 
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright_stealth import Stealth
 
 from bs4 import BeautifulSoup
 from google import genai
@@ -70,7 +71,11 @@ class AuthWallError(ExhibitorFetchError):
 
 def _render_page_sync(url: str, timeout_ms: int = 20000) -> str:
     try:
-        with sync_playwright() as p:
+        # Stealth().use_sync() enveloppe sync_playwright() : toutes les
+        # pages/contextes crees dans ce bloc recoivent automatiquement les
+        # evasions (navigator.webdriver, canvas, userAgentData, etc.) -
+        # usage recommande par la lib, aucune autre ligne a changer.
+        with Stealth().use_sync(sync_playwright()) as p:
             browser = p.chromium.launch()
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
