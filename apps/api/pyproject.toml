@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "beautifulsoup4>=4.12",
     "playwright>=1.45",
+    "playwright-stealth>=2.0.3",
 ]
 
 [project.optional-dependencies]

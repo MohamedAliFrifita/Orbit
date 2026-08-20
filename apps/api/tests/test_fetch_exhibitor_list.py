@@ -11,6 +11,15 @@ from pathlib import Path
 
 from orbit.tools.fetch_exhibitor_list import _parse_exhibitors_static
 
+from orbit.tools.fetch_exhibitor_list import (
+    AuthWallError,
+    ExhibitorLinkNotFoundError,
+    _detect_auth_wall,
+    _extract_links,
+    _find_exhibitor_link_heuristic,
+    fetch_exhibitor_list,
+)
+
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "sepem_douai_exhibitors.html"
 
 
@@ -81,14 +90,20 @@ async def test_falls_back_to_llm_when_static_parsing_finds_nothing(monkeypatch):
     """Niveau 1 echoue (HTML sans le pattern SEPEM) -> Niveau 2 (LLM) doit etre tente."""
     import orbit.tools.fetch_exhibitor_list as mod
 
-    async def fake_fetch_html(url):
-        return "<html><body><div>Structure inconnue, pas de pattern SEPEM ici</div></body></html>"
+    fake_html = "<html><body><div>Structure inconnue, pas de pattern SEPEM ici</div></body></html>"
+
+    async def fake_render_page(url, timeout_ms=20000):
+        return fake_html
+
+    async def fake_locate(homepage_html, homepage_url):
+        return "https://exemple.com/exposants"
 
     async def fake_llm_parse(html, source_url):
         from orbit.schemas.exhibitor import ExhibitorInput
         return [ExhibitorInput(id="llm_0000", name="Exposant Trouve Par LLM", raw_description="test")]
 
-    monkeypatch.setattr(mod, "_fetch_html", fake_fetch_html)
+    monkeypatch.setattr(mod, "_render_page", fake_render_page)
+    monkeypatch.setattr(mod, "_locate_exhibitor_page", fake_locate)
     monkeypatch.setattr(mod, "_parse_exhibitors_llm", fake_llm_parse)
 
     exhibitors = await fetch_exhibitor_list(_make_event("https://exemple.com/exposants"))
@@ -104,8 +119,11 @@ async def test_does_not_call_llm_when_static_parsing_succeeds(monkeypatch):
 
     html = (Path(__file__).parent / "fixtures" / "sepem_douai_exhibitors.html").read_text(encoding="utf-8")
 
-    async def fake_fetch_html(url):
+    async def fake_render_page(url, timeout_ms=20000):
         return html
+
+    async def fake_locate(homepage_html, homepage_url):
+        return "https://sepem-test.com/exposants"
 
     llm_call_count = {"n": 0}
 
@@ -113,7 +131,8 @@ async def test_does_not_call_llm_when_static_parsing_succeeds(monkeypatch):
         llm_call_count["n"] += 1
         return []
 
-    monkeypatch.setattr(mod, "_fetch_html", fake_fetch_html)
+    monkeypatch.setattr(mod, "_render_page", fake_render_page)
+    monkeypatch.setattr(mod, "_locate_exhibitor_page", fake_locate)
     monkeypatch.setattr(mod, "_parse_exhibitors_llm", fake_llm_parse)
 
     exhibitors = await fetch_exhibitor_list(_make_event("https://sepem-test.com"))
@@ -127,14 +146,120 @@ async def test_raises_after_both_levels_fail(monkeypatch):
     typiquement le signe d'un site a rendu JavaScript (voir docstring du module)."""
     import orbit.tools.fetch_exhibitor_list as mod
 
-    async def fake_fetch_html(url):
+    async def fake_render_page(url, timeout_ms=20000):
         return "<html><body><div id='app'></div></body></html>"  # ex: page JS vide
 
     async def fake_llm_parse(html, source_url):
         return []
 
-    monkeypatch.setattr(mod, "_fetch_html", fake_fetch_html)
+    monkeypatch.setattr(mod, "_render_page", fake_render_page)
     monkeypatch.setattr(mod, "_parse_exhibitors_llm", fake_llm_parse)
 
     with pytest.raises(ExhibitorFetchError):
         await fetch_exhibitor_list(_make_event("https://site-js.com"))
+
+
+def test_extract_links_resolves_relative_urls():
+    html = '<html><body><a href="/exhibitors">Exhibitors</a></body></html>'
+    links = _extract_links(html, "https://example.com/home")
+    assert links == [{"text": "Exhibitors", "href": "https://example.com/exhibitors"}]
+
+
+def test_heuristic_finds_single_clear_match():
+    links = [
+        {"text": "About us", "href": "https://x.com/about"},
+        {"text": "Exhibitor List", "href": "https://x.com/exhibitor-list"},
+    ]
+    assert _find_exhibitor_link_heuristic(links) == "https://x.com/exhibitor-list"
+
+
+def test_heuristic_returns_none_when_ambiguous():
+    links = [
+        {"text": "Exhibitors 2025", "href": "https://x.com/a"},
+        {"text": "Become an exhibitor", "href": "https://x.com/b"},
+    ]
+    assert _find_exhibitor_link_heuristic(links) is None
+
+
+def test_heuristic_returns_none_when_no_match():
+    links = [{"text": "Contact", "href": "https://x.com/contact"}]
+    assert _find_exhibitor_link_heuristic(links) is None
+
+
+def test_detects_auth_wall_via_password_field():
+    html = '<html><body><form><input type="password"></form></body></html>'
+    assert _detect_auth_wall(html) is True
+
+
+def test_does_not_flag_normal_page_as_auth_wall():
+    html = "<html><body>" + "<p>Contenu normal de salon.</p>" * 20 + "</body></html>"
+    assert _detect_auth_wall(html) is False
+
+
+async def test_full_pipeline_uses_heuristic_link_and_static_parsing(monkeypatch):
+    import orbit.tools.fetch_exhibitor_list as mod
+    from orbit.schemas.run import SelectedEvent
+
+    homepage_html = '<html><body><a href="/exhibitors">Exhibitor List</a></body></html>'
+    exhibitor_html = (Path(__file__).parent / "fixtures" / "sepem_douai_exhibitors.html").read_text(
+        encoding="utf-8"
+    )
+    pages = {
+        "https://exemple.com/": homepage_html,
+        "https://exemple.com/exhibitors": exhibitor_html,
+    }
+
+    async def fake_render(url, timeout_ms=20000):
+        return pages[url]
+
+    monkeypatch.setattr(mod, "_render_page", fake_render)
+
+    event = SelectedEvent(
+        name="Test", dates="2026-01-01", location="Paris", source_url="https://exemple.com/"
+    )
+    exhibitors = await fetch_exhibitor_list(event)
+    assert len(exhibitors) == 10
+
+
+async def test_raises_auth_wall_error_before_extraction(monkeypatch):
+    import orbit.tools.fetch_exhibitor_list as mod
+    from orbit.schemas.run import SelectedEvent
+
+    homepage_html = '<html><body><a href="/exhibitors">Exhibitors</a></body></html>'
+    gated_html = '<html><body><input type="password"></body></html>'
+    pages = {"https://gated.com/": homepage_html, "https://gated.com/exhibitors": gated_html}
+
+    async def fake_render(url, timeout_ms=20000):
+        return pages[url]
+
+    monkeypatch.setattr(mod, "_render_page", fake_render)
+
+    event = SelectedEvent(
+        name="Gated", dates="2026-01-01", location="Barcelona", source_url="https://gated.com/"
+    )
+
+    with pytest.raises(AuthWallError):
+        await fetch_exhibitor_list(event)
+
+
+async def test_raises_link_not_found_when_no_candidate(monkeypatch):
+    import orbit.tools.fetch_exhibitor_list as mod
+    from orbit.schemas.run import SelectedEvent
+
+    homepage_html = '<html><body><a href="/about">About</a></body></html>'
+
+    async def fake_render(url, timeout_ms=20000):
+        return homepage_html
+
+    async def fake_llm_link(links):
+        return None
+
+    monkeypatch.setattr(mod, "_render_page", fake_render)
+    monkeypatch.setattr(mod, "_find_exhibitor_link_llm", fake_llm_link)
+
+    event = SelectedEvent(
+        name="NoLink", dates="2026-01-01", location="Lyon", source_url="https://nolink.com/"
+    )
+
+    with pytest.raises(ExhibitorLinkNotFoundError):
+        await fetch_exhibitor_list(event)

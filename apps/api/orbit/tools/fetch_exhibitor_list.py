@@ -29,8 +29,8 @@ import asyncio
 
 from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright
-from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from bs4 import BeautifulSoup
 from google import genai
@@ -68,24 +68,14 @@ class AuthWallError(ExhibitorFetchError):
     pass
 
 
-async def _render_page(url: str, timeout_ms: int = 20000) -> str:
-    """
-    Etape 1 et Etape 3 (Objectif 8) - charge une page avec un navigateur
-    headless et retourne le HTML final APRES execution du JavaScript.
-
-    Meme fonction utilisee pour la homepage et pour la page exposants
-    localisee ensuite - un seul chemin de code, coherent avec la strategie
-    unifiee (voir orbit-semaine2-guide.md, Objectif 8). Remplace _fetch_html
-    (httpx), qui ne rendait pas le JS et echouait donc silencieusement sur
-    les sites dynamiques (cas embedded-world.eu, hannovermesse.de).
-    """
+def _render_page_sync(url: str, timeout_ms: int = 20000) -> str:
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
-            html = await page.content()
-            await browser.close()
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            html = page.content()
+            browser.close()
             return html
     except PlaywrightTimeoutError as exc:
         raise ExhibitorFetchError(
@@ -95,6 +85,16 @@ async def _render_page(url: str, timeout_ms: int = 20000) -> str:
         raise ExhibitorFetchError(
             f"Impossible de charger {url} avec le navigateur: {exc}"
         ) from exc
+
+async def _render_page(url: str, timeout_ms: int = 20000) -> str:
+    """
+    Etape 1 et Etape 3 (Objectif 8) - charge une page avec un navigateur
+    headless et retourne le HTML final APRES execution du JavaScript.
+    
+    Exécute Playwright dans un thread séparé pour éviter les conflits
+    avec la boucle d'événements de FastAPI sur Windows.
+    """
+    return await asyncio.to_thread(_render_page_sync, url, timeout_ms)
 
 
 _EXHIBITOR_KEYWORDS = [
@@ -200,23 +200,26 @@ def _detect_auth_wall(html: str) -> bool:
     """
     Etape 4 - detection heuristique d'un mur d'authentification.
 
-    Signal fort : un champ password present -> peu de faux positifs.
-    Signal faible combine : mots-cles de connexion dominants sur un texte
-    par ailleurs tres court -> evite de declencher sur un simple lien "Login"
-    dans le menu d'un site par ailleurs riche en contenu.
+    Signal fort : un champ password present -> MAIS on vérifie d'abord que 
+    le contenu de la page est faible. Si la page contient beaucoup de texte,
+    c'est probablement juste un formulaire de connexion dans le header/footer.
     """
     soup = BeautifulSoup(html, "html.parser")
+    text = soup.get_text(separator=" ", strip=True).lower()
+
+    # Si la page est riche en contenu, ce n'est pas un auth wall bloquant
+    if len(text) > 1500:
+        return False
 
     if soup.find("input", {"type": "password"}):
         return True
 
-    text = soup.get_text(separator=" ", strip=True).lower()
     if len(text) < 500:
         hits = sum(1 for kw in _AUTH_KEYWORDS if kw in text)
         if hits >= 2:
             return True
 
-    return 
+    return False
 
 
 # Pattern observe sur SEPEM Douai : nom colle directement au lieu + " - Stand " + code

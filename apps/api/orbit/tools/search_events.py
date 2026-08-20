@@ -122,22 +122,7 @@ async def search_events(run_input: RunInput) -> list[EventCandidate]:
     un essai de correction, ou si aucun evenement plausible n'est trouve.
     """
     client = _get_client()
-    # v2 : instructions renforcees sur source_url (doit cibler la page exposants
-    # specifiquement, pas la page d'accueil - voir scout/v2.md pour le detail,
-    # correctif suite au cas reel Hannover Messe ou v1 renvoyait la homepage)
-    # v3 : priorite explicite au domaine officiel de l'evenement, evite les
-    # agregateurs tiers (10times, expocaptive...) - correctif suite au cas reel
-    # observe ou 3/5 URLs pointaient vers des sites d'annuaire plutot que le
-    # site organisateur officiel (voir orbit-contexte-semaine2.md)
-    # v4 : interdiction explicite de CONSTRUIRE une URL par pattern-completion
-    # (ex: domaine + "/exhibitors" invente) - correctif suite au cas reel ou
-    # le modele a invente un domaine entier n'existant pas
-    # (warsawindustryautomatica.com -> DNS_PROBE_FINISHED_NXDOMAIN) et 4 autres
-    # URLs plausibles mais 404 sur les vrais domaines officiels. Notre propre
-    # verification anti-hallucination (grounding_metadata) avait deja flagge
-    # les 5 evenements comme non confirmes - ce correctif vise a reduire la
-    # frequence de ce cas en amont, dans le prompt lui-meme.
-    system_prompt = load_prompt("scout", version="v4")
+    system_prompt = load_prompt("scout", version="v1")
     config = _build_config(system_prompt)
 
     user_prompt = (

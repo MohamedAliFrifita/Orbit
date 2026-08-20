@@ -7,6 +7,12 @@ lectures/ecritures via orbit.db.models (voir persist() dans orchestrator/run.py,
 a creer a ce moment-la).
 """
 
+import sys
+import asyncio
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore
+
 from fastapi import FastAPI, HTTPException
 
 from orbit.orchestrator.run import InvalidTransition, advance, select_event
