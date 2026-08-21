@@ -71,14 +71,21 @@ class AuthWallError(ExhibitorFetchError):
 
 def _render_page_sync(url: str, timeout_ms: int = 20000) -> str:
     try:
-        # Stealth().use_sync() enveloppe sync_playwright() : toutes les
-        # pages/contextes crees dans ce bloc recoivent automatiquement les
-        # evasions (navigator.webdriver, canvas, userAgentData, etc.) -
-        # usage recommande par la lib, aucune autre ligne a changer.
         with Stealth().use_sync(sync_playwright()) as p:
             browser = p.chromium.launch()
             page = browser.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            try:
+                # Tentative robuste : attend l'absence d'activite reseau,
+                # necessaire pour les SPA dont le contenu arrive par API
+                # apres le DOM initial (cas dp-nme.fieramilano.it).
+                page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+            except PlaywrightTimeoutError:
+                # Repli : certains sites gardent des connexions actives en
+                # permanence (trackers, widgets, carousel) et ne deviennent
+                # jamais "idle" avant le timeout (cas nextmobilityexhibition.com
+                # homepage). Le DOM est deja charge a ce stade - on continue
+                # avec le contenu disponible plutot que d'echouer entierement.
+                pass
             html = page.content()
             browser.close()
             return html
