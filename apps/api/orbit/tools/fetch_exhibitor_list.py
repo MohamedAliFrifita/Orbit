@@ -69,7 +69,7 @@ class AuthWallError(ExhibitorFetchError):
     pass
 
 
-def _render_page_sync(url: str, timeout_ms: int = 20000) -> str:
+def _render_page_sync(url: str, timeout_ms: int = 60000) -> str:
     try:
         with Stealth().use_sync(sync_playwright()) as p:
             browser = p.chromium.launch()
@@ -98,7 +98,7 @@ def _render_page_sync(url: str, timeout_ms: int = 20000) -> str:
             f"Impossible de charger {url} avec le navigateur: {exc}"
         ) from exc
 
-async def _render_page(url: str, timeout_ms: int = 20000) -> str:
+async def _render_page(url: str, timeout_ms: int = 60000) -> str:
     """
     Etape 1 et Etape 3 (Objectif 8) - charge une page avec un navigateur
     headless et retourne le HTML final APRES execution du JavaScript.

@@ -10,3 +10,4 @@ class ItineraryStop(BaseModel):
     booth: str | None = None
     time_slot: str | None = None
     objective: str
+    justification: str = ""  # Justification metier generee par le Planner LLM (semaine 4)

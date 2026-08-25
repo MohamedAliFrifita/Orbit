@@ -77,7 +77,7 @@ async def advance(state: RunState) -> RunState:
             state.stage = RunStage.PLANNER
 
         case RunStage.PLANNER:
-            state.itinerary = await planner.run(state.exhibitors)
+            state.itinerary = await planner.run(state.exhibitors, state.input.icp)
             state.stage = RunStage.DONE
 
         case RunStage.DONE | RunStage.FAILED:
