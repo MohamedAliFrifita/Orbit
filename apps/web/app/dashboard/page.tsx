@@ -5,6 +5,28 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 // --- Types ---
+type Objective = "find_clients" | "find_partners" | "competitive_intel";
+
+const OBJECTIVE_LABELS: Record<Objective, string> = {
+  find_clients: "Identifier des clients",
+  find_partners: "Identifier des partenaires",
+  competitive_intel: "Renseignement concurrentiel",
+};
+
+interface MissionForm {
+  sector: string;
+  region: string;
+  targetClientProfile: string;
+  objectives: Objective[];
+}
+
+const EMPTY_FORM: MissionForm = {
+  sector: "",
+  region: "",
+  targetClientProfile: "",
+  objectives: [],
+};
+
 interface RunInput {
   sector: string;
   region: string;
@@ -24,6 +46,15 @@ interface ItineraryStop {
   justification: string;
 }
 
+interface EventCandidate {
+  name: string;
+  dates: string;
+  location: string;
+  exhibitor_count: number | null;
+  source_url: string | null;
+  relevance_note: string | null;
+}
+
 interface RunState {
   run_id: string;
   client_id: string;
@@ -31,6 +62,7 @@ interface RunState {
   raw_exhibitor_count: number;
   exhibitors: unknown[];
   itinerary: ItineraryStop[];
+  candidate_events: EventCandidate[];
   error: string | null;
 }
 
@@ -53,19 +85,34 @@ export default function DashboardPage() {
   const [runState, setRunState] = useState<RunState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<MissionForm>(EMPTY_FORM);
 
-  // Lance un nouveau run avec un payload de démonstration
+  function toggleObjective(obj: Objective) {
+    setForm((prev) => ({
+      ...prev,
+      objectives: prev.objectives.includes(obj)
+        ? prev.objectives.filter((o) => o !== obj)
+        : [...prev.objectives, obj],
+    }));
+  }
+
+  const formValide =
+    form.sector.trim() !== "" &&
+    form.region.trim() !== "" &&
+    form.targetClientProfile.trim() !== "" &&
+    form.objectives.length > 0;
+
   async function lancerRun() {
+    if (!formValide) return;
     setLoading(true);
     setError(null);
 
     const payload: RunInput = {
-      sector: "Industrie 4.0",
-      region: "France",
+      sector: form.sector.trim(),
+      region: form.region.trim(),
       icp: {
-        target_client_profile:
-          "Fabricants de lignes de production industrielle cherchant à automatiser leurs processus",
-        objectives: ["find_clients", "find_partners"],
+        target_client_profile: form.targetClientProfile.trim(),
+        objectives: form.objectives,
       },
     };
 
@@ -132,6 +179,38 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }
+  // Sélectionne un événement parmi ceux proposés par le Scout
+  async function selectionnerEvenement(candidate: EventCandidate) {
+    if (!runState) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/runs/${runState.run_id}/select-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: candidate.name,
+          dates: candidate.dates,
+          location: candidate.location,
+          exhibitor_count: candidate.exhibitor_count,
+          source_url: candidate.source_url,
+        }),
+      });
+
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(detail.detail ?? `Erreur ${res.status}`);
+      }
+
+      const state: RunState = await res.json();
+      setRunState(state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const stageActuel = runState?.stage ?? null;
   const pipelineTermine = stageActuel === "done" || stageActuel === "failed";
@@ -149,11 +228,6 @@ export default function DashboardPage() {
               Actualiser les statuts
             </Button>
           )}
-          {!runState && (
-            <Button onClick={lancerRun} disabled={loading}>
-              {loading ? "Initialisation…" : "Lancer la mission"}
-            </Button>
-          )}
         </div>
       </header>
 
@@ -161,6 +235,77 @@ export default function DashboardPage() {
       {error && (
         <div className="mb-6 border border-accent bg-bg-card p-4 text-accent font-mono text-sm">
           ⚠ {error}
+        </div>
+      )}
+      {!runState && (
+        <div className="mb-8">
+          <Card title="Paramètres de la mission">
+            <div className="space-y-5">
+              <div>
+                <label className="block font-semibold uppercase text-sm mb-2">
+                  Secteur
+                </label>
+                <input
+                  type="text"
+                  value={form.sector}
+                  onChange={(e) => setForm({ ...form, sector: e.target.value })}
+                  placeholder="Ex. Industrie 4.0"
+                  className="w-full bg-bg border border-border px-4 py-2 text-white focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold uppercase text-sm mb-2">
+                  Région
+                </label>
+                <input
+                  type="text"
+                  value={form.region}
+                  onChange={(e) => setForm({ ...form, region: e.target.value })}
+                  placeholder="Ex. France"
+                  className="w-full bg-bg border border-border px-4 py-2 text-white focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold uppercase text-sm mb-2">
+                  Profil client cible (ICP)
+                </label>
+                <textarea
+                  value={form.targetClientProfile}
+                  onChange={(e) =>
+                    setForm({ ...form, targetClientProfile: e.target.value })
+                  }
+                  placeholder="Décrire le profil client à cibler"
+                  rows={3}
+                  className="w-full bg-bg border border-border px-4 py-2 text-white focus:outline-none focus:border-accent resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold uppercase text-sm mb-2">
+                  Objectifs
+                </label>
+                <div className="flex flex-wrap gap-4">
+                  {(Object.keys(OBJECTIVE_LABELS) as Objective[]).map((obj) => (
+                    <label key={obj} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.objectives.includes(obj)}
+                        onChange={() => toggleObjective(obj)}
+                        className="accent-accent w-4 h-4"
+                      />
+                      <span className="text-sm">{OBJECTIVE_LABELS[obj]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={lancerRun} disabled={loading || !formValide}>
+                {loading ? "Initialisation…" : "Lancer la mission"}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -240,6 +385,41 @@ export default function DashboardPage() {
           </ul>
         </Card>
       </div>
+      {/* Sélection d'événement — checkpoint humain */}
+      {stageActuel === "awaiting_selection" && runState.candidate_events.length > 0 && (
+        <div className="mt-8">
+          <Card title="Sélectionner l'événement cible">
+            <div className="space-y-4">
+              {runState.candidate_events.map((candidate) => (
+                <div
+                  key={candidate.name}
+                  className="border border-border p-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-bold uppercase tracking-wide">{candidate.name}</p>
+                    <p className="text-sm text-white/70">
+                      {candidate.dates} — {candidate.location}
+                    </p>
+                    {candidate.exhibitor_count !== null && (
+                      <p className="text-xs text-accent font-mono mt-1">
+                        ~{candidate.exhibitor_count} exposants estimés
+                      </p>
+                    )}
+                    {candidate.relevance_note && (
+                      <p className="text-xs text-white/50 italic mt-1">
+                        {candidate.relevance_note}
+                      </p>
+                    )}
+                  </div>
+                  <Button onClick={() => selectionnerEvenement(candidate)} disabled={loading}>
+                    Choisir cet événement
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Itinéraire — affiché quand le run est DONE */}
       {runState?.itinerary && runState.itinerary.length > 0 && (
