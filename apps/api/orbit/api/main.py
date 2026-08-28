@@ -14,11 +14,21 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from orbit.orchestrator.run import InvalidTransition, advance, select_event
 from orbit.schemas.run import RunInput, RunState, SelectedEvent
 
 app = FastAPI(title="ORBIT API", version="0.1.0")
+
+# CORS : autoriser le frontend Next.js en dev local (semaine 4)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # TODO(semaine 2): remplacer par la persistance Postgres
 RUNS: dict[str, RunState] = {}
