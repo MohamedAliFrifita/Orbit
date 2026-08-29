@@ -1,0 +1,19 @@
+{
+  "name": "ORBIT Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+  "forwardPorts": [8000, 3000],
+  "portsAttributes": {
+    "8000": {
+      "label": "ORBIT API (FastAPI)",
+      "visibility": "public"
+    },
+    "3000": {
+      "label": "ORBIT Web (Next.js)",
+      "visibility": "public"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh"
+}
