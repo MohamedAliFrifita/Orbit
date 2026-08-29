@@ -4,6 +4,7 @@ set -e
 echo "Installation du backend..."
 cd apps/api
 pip install -e ".[dev]"
+playwright install --with-deps chromium
 cd ../..
 
 echo "Installation du frontend..."
