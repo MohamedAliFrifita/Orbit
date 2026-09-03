@@ -1,35 +1,110 @@
-# ORBIT — Commando IA Événementiel
+# ORBIT
 
-Squelette de repo — Semaine 1 (voir `orbit-coding-guide.md`).
+Système multi-agents pour la préparation et l'optimisation de prospection lors de salons professionnels B2B.
 
-## Contenu de cette étape
+Le projet automatise la détection des événements pertinents, l'extraction de la liste des exposants et leur qualification selon un profil client cible (ICP).
 
-- Structure du monorepo (`apps/api` backend Python/FastAPI, `apps/web` réservé pour le frontend Next.js — semaine 4+)
-- Schéma de base de données (SQLAlchemy + Alembic)
-- `RunState` (Pydantic) — le contrat de données de l'orchestrateur
-- Orchestrateur avec les 5 stages (`scout`, `analyst`, `classifier`, `planner`, `done`), **chaque stage retourne des données mockées** pour l'instant — aucun appel LLM réel encore
-- Tests de base validant que la state machine avance correctement
+---
 
-## Démarrage rapide
+## Architecture & Fonctionnement
+
+Le pipeline suit un pattern **Orchestrator-Worker** découpé en 5 étapes successives :
+
+1. **Scout** : Recherche et sélectionne les salons candidats selon le secteur et la région demandés.
+2. **Awaiting Selection** : Étape humaine de validation du salon cible.
+3. **Analyst** : Extraction et scraping de la liste des exposants du salon sélectionné via Playwright.
+4. **Classifier** : Analyse et notation de chaque exposant par LLM (Gemini) selon l'ICP client.
+5. **Planner** : Génération d'un planning de visite optimisé et fiches de prospection.
+
+### Structure du dépôt
+
+```text
+orbit/
+├── apps/
+│   ├── api/          # Backend Python (FastAPI, SQLAlchemy, Alembic, Playwright, Gemini)
+│   └── web/          # Frontend Next.js (React 19, TypeScript, Tailwind CSS)
+├── docker-compose.yml # PostgreSQL 16 & Redis 7
+└── manual_test_e2e.py # Script de validation bout en bout
+```
+
+---
+
+## Démarrage et exécution locale
+
+Deux terminaux sont nécessaires pour exécuter simultanément l'API et l'interface web.
+
+### Terminal 1 : Backend
+
+Se placer à la racine du dépôt `orbit/` :
 
 ```bash
+# 1. Démarrer PostgreSQL et Redis
+docker compose up -d
+
+# 2. Entrer dans l'API
 cd apps/api
-python -m venv .venv && source .venv/bin/activate
+
+# 3. Activer l'environnement virtuel Python
+source .venv/Scripts/activate       # Windows (Git Bash)
+# source .venv/bin/activate         # Linux / macOS
+
+# 4. Installer les dépendances et le navigateur Playwright
 pip install -e ".[dev]"
+playwright install chromium
 
-docker compose up -d          # lance Postgres local
-alembic upgrade head          # applique le schéma DB
+# 5. Configurer l'environnement
+cp .env.example .env
 
-uvicorn orbit.api.main:app --reload
+# 6. Appliquer les migrations de base de données
+alembic upgrade head
+
+# 7. Lancer le serveur FastAPI
+uvicorn orbit.api.main:app --reload --port 8000
 ```
 
-Puis dans un autre terminal :
+- **API** : http://localhost:8000
+- **Documentation Swagger** : http://localhost:8000/docs
+
+#### Configuration requise (.env)
+
+Dans `apps/api/.env`, renseignez votre clé Gemini :
+```env
+GEMINI_API_KEY=AIzaSy...
+```
+
+*Note sur le modèle Gemini :*  
+Le backend utilise `gemini-2.5-flash` par défaut. Si le modèle devient obsolète ou indisponible, vous pouvez le modifier sans toucher au code en ajoutant ces variables dans `.env` :
+```env
+ORBIT_SCOUT_MODEL=nom-du-modele
+ORBIT_CLASSIFIER_MODEL=nom-du-modele
+```
+
+---
+
+### Terminal 2 : Frontend
+
+Dans un second terminal, depuis la racine `orbit/` :
+
 ```bash
-curl -X POST http://localhost:8000/runs \
-  -H "Content-Type: application/json" \
-  -d '{"sector": "industrial automation", "objectives": ["find_clients"], "region": "France"}'
+cd apps/web
+npm install
+npm run dev
 ```
 
-## Prochaine étape (semaine 2)
+- **Application web** : http://localhost:3000
 
-Remplacer les mocks dans `orbit/agents/scout.py` et `orbit/agents/analyst.py` par de vrais appels (recherche d'événements, scraping de la liste d'exposants).
+---
+
+## Tests
+
+### Tests unitaires et d'intégration
+Depuis `apps/api` (environnement virtuel actif) :
+```bash
+pytest -v
+```
+
+### Test de bout en bout (E2E)
+Depuis la racine `orbit/` :
+```bash
+python manual_test_e2e.py
+```
