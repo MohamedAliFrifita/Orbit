@@ -72,11 +72,13 @@ Dans `apps/api/.env`, renseignez votre clé Gemini :
 GEMINI_API_KEY=AIzaSy...
 ```
 
-*Note sur le modèle Gemini :*  
-Le backend utilise `gemini-2.5-flash` par défaut. Si le modèle devient obsolète ou indisponible, vous pouvez le modifier sans toucher au code en ajoutant ces variables dans `.env` :
+*Note sur les modèles Gemini :*  
+Le backend utilise `gemini-2.5-flash` par défaut pour l'ensemble des agents. Si le modèle devient obsolète ou indisponible, vous pouvez modifier le modèle de chacun des 4 composants dans votre `.env` sans toucher au code :
 ```env
-ORBIT_SCOUT_MODEL=nom-du-modele
-ORBIT_CLASSIFIER_MODEL=nom-du-modele
+ORBIT_SCOUT_MODEL=nom-du-modele        # Agent Scout (recherche de salons)
+LLM_FALLBACK_MODEL=nom-du-modele       # Agent Analyst (fallback d'extraction)
+ORBIT_CLASSIFIER_MODEL=nom-du-modele   # Agent Classifier (qualification des exposants)
+ORBIT_PLANNER_MODEL=nom-du-modele      # Agent Planner (génération d'itinéraire)
 ```
 
 ---
