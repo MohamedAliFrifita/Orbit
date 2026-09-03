@@ -22,11 +22,10 @@ l'observe reellement (voir orbit-contexte-semaine2.md).
 
 from __future__ import annotations
 
-import json
-import re
-
 import asyncio
-
+import json
+import os
+import re
 from urllib.parse import urljoin
 
 from playwright.sync_api import sync_playwright
@@ -43,7 +42,7 @@ from orbit.prompts import load_prompt
 from orbit.schemas.exhibitor import ExhibitorInput
 from orbit.schemas.run import SelectedEvent
 
-LLM_FALLBACK_MODEL = "gemini-2.5-flash"
+LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash")
 
 
 
