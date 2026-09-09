@@ -37,7 +37,7 @@ from orbit.prompts import load_prompt
 from orbit.schemas.exhibitor import ClassificationOutput, ExhibitorInput
 from orbit.schemas.run import ICPContext
 
-MODEL_NAME = os.environ.get("ORBIT_CLASSIFIER_MODEL", "gemini-2.5-flash")
+MODEL_NAME = os.environ.get("ORBIT_CLASSIFIER_MODEL")
 BATCH_SIZE = int(os.environ.get("CLASSIFIER_BATCH_SIZE", "3"))
 _MAX_RETRIES = 3
 _BACKOFF_BASE = 1.0  # secondes

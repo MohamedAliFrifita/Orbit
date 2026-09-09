@@ -38,7 +38,7 @@ from orbit.schemas.exhibitor import ClassificationOutput
 from orbit.schemas.itinerary import ItineraryStop
 from orbit.schemas.run import ICPContext
 
-MODEL_NAME = os.environ.get("ORBIT_PLANNER_MODEL", "gemini-2.5-flash")
+MODEL_NAME = os.environ.get("ORBIT_PLANNER_MODEL")
 _MAX_RETRIES = 3
 _BACKOFF_BASE = 1.0  # secondes
 

@@ -16,6 +16,21 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "playwright>=1.45",
     "playwright-stealth>=2.0.3",
+    # ── Nouveaux providers LLM ──
+    "openai>=1.40",          # client xAI (GROK) via compatibilité OpenAI
+    "groq>=0.9",             # client Groq (Llama 3.3)
+    "mistralai>=1.0",        # client Mistral (Judge)
+    # ── Auth ──
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "python-multipart>=0.0.9",
+    # ── SSE ──
+    "sse-starlette>=2.1",
+    # ── Redis async ──
+    "redis>=5.0",
+    # ── PDF ──
+    "weasyprint>=62.0",
+    "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]

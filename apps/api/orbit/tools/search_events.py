@@ -50,7 +50,7 @@ import os
 # - Confirme via le dashboard aistudio.google.com/rate-limit : gemini-2.5-flash
 #   a un quota actif sur ce compte (5 RPM / 250K TPM / 20 RPD) avec des appels
 #   deja reussis - c'est le modele a utiliser.
-MODEL_NAME = os.environ.get("ORBIT_SCOUT_MODEL", "gemini-2.5-flash")
+MODEL_NAME = os.environ.get("ORBIT_SCOUT_MODEL")
 
 _JSON_ARRAY_PATTERN = re.compile(r"\[.*\]", re.DOTALL)
 

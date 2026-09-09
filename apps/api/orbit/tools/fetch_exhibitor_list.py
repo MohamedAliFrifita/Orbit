@@ -42,7 +42,7 @@ from orbit.prompts import load_prompt
 from orbit.schemas.exhibitor import ExhibitorInput
 from orbit.schemas.run import SelectedEvent
 
-LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash")
+LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL")
 
 
 
