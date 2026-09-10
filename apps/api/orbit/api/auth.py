@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from orbit.api.deps import get_current_user, get_db
 from orbit.config import settings
-from orbit.db.models import User
+from orbit.db.models import User,Client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -66,6 +66,9 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 
     user = User(email=body.email, hashed_password=_hash(body.password))
     db.add(user)
+    await db.flush()  # pour avoir user.id
+    client = Client(user_id=user.id, name=body.email)
+    db.add(client)
     await db.commit()
     await db.refresh(user)
     return UserOut(id=user.id, email=user.email)

@@ -13,11 +13,16 @@ import asyncio
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore
 
-from fastapi import FastAPI, HTTPException
+from orbit.db.models import Client
+from orbit.api.deps import get_current_client
+
+from fastapi import Depends,FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from orbit.orchestrator.run import InvalidTransition, advance, select_event
 from orbit.schemas.run import RunInput, RunState, SelectedEvent
+
+from orbit.api import auth as auth_router
 
 app = FastAPI(title="ORBIT API", version="0.1.0")
 
@@ -31,13 +36,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router)
+
 # TODO(semaine 2): remplacer par la persistance Postgres
 RUNS: dict[str, RunState] = {}
 
 
 @app.post("/runs", response_model=RunState)
-async def create_run(run_input: RunInput, client_id: str = "demo-client") -> RunState:
-    state = RunState(client_id=client_id, input=run_input)
+async def create_run(run_input: RunInput,  client: Client = Depends(get_current_client),) -> RunState:
+    state = RunState(client_id=client.id, input=run_input)
     state = await advance(state)  # scout -> awaiting_selection
     RUNS[state.run_id] = state
     return state

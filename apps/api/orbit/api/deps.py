@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from orbit.config import settings
 from orbit.db.base import get_session
-from orbit.db.models import User
+from orbit.db.models import User,Client
 from sqlalchemy import select
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -41,3 +41,10 @@ async def get_current_user(
     if user is None:
         raise credentials_exc
     return user
+
+async def get_current_client(current_user: User = Depends(get_current_user),db: AsyncSession = Depends(get_db),) -> Client:
+    result = await db.execute(select(Client).where(Client.user_id == current_user.id))
+    client = result.scalar_one_or_none()
+    if client is None:
+        raise HTTPException(status_code=404, detail="Profil client introuvable pour cet utilisateur")
+    return client
