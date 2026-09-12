@@ -374,7 +374,7 @@ async def fetch_exhibitor_list(
     homepage_html = await _render_page(homepage_url)
 
     # Etape 2 : localisation du lien exposants (heuristique -> LLM secours -> echec)
-    exhibitor_page_url = await _locate_exhibitor_page(homepage_html, homepage_url, prompt_override=prompt_override)
+    exhibitor_page_url = await _locate_exhibitor_page(homepage_html, homepage_url)
 
     # Etape 3 : rendu de la page exposants elle-meme
     exhibitor_html = await _render_page(exhibitor_page_url)
@@ -393,7 +393,7 @@ async def fetch_exhibitor_list(
     if exhibitors:
         return exhibitors
 
-    exhibitors = await _parse_exhibitors_llm(exhibitor_html, exhibitor_page_url)
+    exhibitors = await _parse_exhibitors_llm(exhibitor_html, exhibitor_page_url, prompt_override=prompt_override)
     if exhibitors:
         return exhibitors
 
