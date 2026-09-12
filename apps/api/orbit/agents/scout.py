@@ -14,5 +14,5 @@ from orbit.schemas.run import EventCandidate, RunInput
 from orbit.tools.search_events import search_events
 
 
-async def run(run_input: RunInput) -> list[EventCandidate]:
-    return await search_events(run_input)
+async def run(run_input: RunInput, prompt_override: str | None = None) -> list[EventCandidate]:
+    return await search_events(run_input, prompt_override=prompt_override)

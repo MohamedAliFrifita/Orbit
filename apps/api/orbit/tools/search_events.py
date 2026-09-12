@@ -115,14 +115,14 @@ def _domain_of(url: str) -> str:
     return m.group(1).lower() if m else ""
 
 
-async def search_events(run_input: RunInput) -> list[EventCandidate]:
+async def search_events(run_input: RunInput, prompt_override: str | None = None) -> list[EventCandidate]:
     """
     Cherche des evenements pertinents pour le secteur/region donnes, via Gemini
     + recherche web. Leve EventSearchError si la reponse reste invalide apres
     un essai de correction, ou si aucun evenement plausible n'est trouve.
     """
     client = _get_client()
-    system_prompt = load_prompt("scout", version="v1")
+    system_prompt = prompt_override or load_prompt("scout", version="v1")
     config = _build_config(system_prompt)
 
     user_prompt = (

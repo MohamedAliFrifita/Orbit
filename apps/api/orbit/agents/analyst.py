@@ -15,5 +15,5 @@ from orbit.schemas.run import SelectedEvent
 from orbit.tools.fetch_exhibitor_list import fetch_exhibitor_list
 
 
-async def run(event: SelectedEvent) -> list[ExhibitorInput]:
-    return await fetch_exhibitor_list(event)
+async def run(event: SelectedEvent, prompt_override: str | None = None) -> list[ExhibitorInput]:
+    return await fetch_exhibitor_list(event, prompt_override=prompt_override)

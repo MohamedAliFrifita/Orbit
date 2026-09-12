@@ -297,7 +297,7 @@ _EXTRACTION_SCHEMA = {
 }
 
 
-async def _parse_exhibitors_llm(html: str, source_url: str) -> list[ExhibitorInput]:
+async def _parse_exhibitors_llm(html: str, source_url: str, prompt_override: str | None = None) -> list[ExhibitorInput]:
     """Niveau 2 (Etape 5) - response_schema natif, pas de google_search ici donc pas de contrainte."""
     if not settings.gemini_api_key:
         return []
@@ -305,7 +305,7 @@ async def _parse_exhibitors_llm(html: str, source_url: str) -> list[ExhibitorInp
     cleaned_text = _clean_html_to_text(html)
     cleaned_text = cleaned_text[:20000]
 
-    system_prompt = load_prompt("analyst", version="v1")
+    system_prompt = prompt_override or load_prompt("analyst", version="v1")
     client = genai.Client(api_key=settings.gemini_api_key)
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
@@ -347,7 +347,11 @@ async def _parse_exhibitors_llm(html: str, source_url: str) -> list[ExhibitorInp
 
     return exhibitors
 
-async def fetch_exhibitor_list(event: SelectedEvent, url: str | None = None) -> list[ExhibitorInput]:
+async def fetch_exhibitor_list(
+    event: SelectedEvent,
+    url: str | None = None,
+    prompt_override: str | None = None,
+) -> list[ExhibitorInput]:
     """
     Strategie Analyst unifiee via Playwright (Objectif 8) - remplace l'ancien
     pipeline httpx + detection JS/gated separee. Un seul chemin de code pour
@@ -370,7 +374,7 @@ async def fetch_exhibitor_list(event: SelectedEvent, url: str | None = None) -> 
     homepage_html = await _render_page(homepage_url)
 
     # Etape 2 : localisation du lien exposants (heuristique -> LLM secours -> echec)
-    exhibitor_page_url = await _locate_exhibitor_page(homepage_html, homepage_url)
+    exhibitor_page_url = await _locate_exhibitor_page(homepage_html, homepage_url, prompt_override=prompt_override)
 
     # Etape 3 : rendu de la page exposants elle-meme
     exhibitor_html = await _render_page(exhibitor_page_url)
