@@ -98,9 +98,10 @@ async def test_falls_back_to_llm_when_static_parsing_finds_nothing(monkeypatch):
     async def fake_locate(homepage_html, homepage_url):
         return "https://exemple.com/exposants"
 
-    async def fake_llm_parse(html, source_url):
+    async def fake_llm_parse(html, source_url, **kwargs):
         from orbit.schemas.exhibitor import ExhibitorInput
         return [ExhibitorInput(id="llm_0000", name="Exposant Trouve Par LLM", raw_description="test")]
+
 
     monkeypatch.setattr(mod, "_render_page", fake_render_page)
     monkeypatch.setattr(mod, "_locate_exhibitor_page", fake_locate)

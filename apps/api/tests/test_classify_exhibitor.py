@@ -284,7 +284,7 @@ async def test_max_exhibitors_truncation(monkeypatch):
         captured_batches.append(exhibitors)
         return []
 
-    monkeypatch.setattr(classifier_agent, "classify_exhibitor_batch", fake_classify_batch)
+    monkeypatch.setattr("orbit.tools.classify_exhibitor.classify_exhibitor_batch", fake_classify_batch)
 
     exhibitors_30 = [_exhibitor(f"ex_{i:03d}", f"Exhibitor {i}") for i in range(30)]
     await classifier_agent.run_batch(exhibitors_30, MOCK_ICP)

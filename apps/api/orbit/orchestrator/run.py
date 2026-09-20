@@ -190,7 +190,10 @@ async def _run_stage_with_judge(
         elif verdict.verdict == "REWORK":
             rework_target = _REWORK_TARGET.get(stage)
             if rework_target and state.retry_counts.get(f"rework_{stage.value}", 0) < 2:
-                state.retry_counts[f"rework_{stage.value}"] += 1
+                current_reworks = state.retry_counts.get(f"rework_{stage.value}", 0)
+                state.retry_counts[f"rework_{stage.value}"] = current_reworks + 1
+
+
                 state.stage = rework_target
                 await publish({
                     "event": "rework",
@@ -249,14 +252,17 @@ async def advance(
                 await publish({"event": "stage_completed", "stage": "analyst",
                                "exhibitor_count": len(output)})
             elif output is None:
-                # Échec extraction (aucun exposant trouvé) -> retour au choix d'événement
-                state.stage = RunStage.AWAITING_SELECTION
-                state.selected_event = None
-                await publish({
-                    "event": "returned_to_selection",
-                    "stage": "awaiting_selection",
-                    "reason": state.error or "Aucun exposant trouvé sur ce salon. Choisissez un autre événement."
-                })
+                # Si le stage n'a pas été redirigé vers une cible de REWORK (ex: SCOUT),
+                # alors c'est un échec d'extraction -> retour au choix d'événement
+                if state.stage == RunStage.ANALYST:
+                    state.stage = RunStage.AWAITING_SELECTION
+                    state.selected_event = None
+                    await publish({
+                        "event": "returned_to_selection",
+                        "stage": "awaiting_selection",
+                        "reason": state.error or "Aucun exposant trouvé sur ce salon. Choisissez un autre événement."
+                    })
+
 
         case RunStage.CLASSIFIER:
             await publish({"event": "stage_started", "stage": "classifier"})
