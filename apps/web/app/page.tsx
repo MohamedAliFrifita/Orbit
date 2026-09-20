@@ -17,7 +17,7 @@ export default function MissionPage() {
             <li>Prioriser les actions d&apos;engagement</li>
           </ul>
           <div className="flex justify-center">
-            <Link href="/dashboard">
+            <Link href="/login">
               <Button>Accéder au Centre de Commandement</Button>
             </Link>
           </div>

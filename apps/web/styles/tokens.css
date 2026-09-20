@@ -11,3 +11,10 @@ body {
   background-color: var(--color-bg);
   color: #FFFFFF;
 }
+
+/* ── Animation barre de progression indéterminée (Scout spinner) ── */
+@keyframes scout-slide {
+  0%   { left: -40%; }
+  100% { left: 110%; }
+}
+
