@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     email_provider_api_key: str = ""
 
     # Nouveaux providers LLM
-    grok_api_key: str = ""          # xAI — Orchestrateur Planning
-    groq_api_key: str = ""          # Groq — Classifier + Planner workers
+    groq_api_key: str = ""          # Groq — Orchestrateur (Planning) + Classifier + Planner
     mistral_api_key: str = ""       # Mistral — Judge
 
     # Auth JWT

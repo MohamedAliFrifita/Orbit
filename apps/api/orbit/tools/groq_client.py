@@ -1,10 +1,10 @@
-"""Client Groq — Llama 3.3 70B pour Classifier et Planner workers."""
+"""Client Groq — GPT-OSS-120B pour Classifier et Planner workers."""
 
 
 from __future__ import annotations
 from groq import AsyncGroq
 from orbit.config import settings
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 _client: AsyncGroq | None = None
 def get_groq_client() -> AsyncGroq:
     global _client

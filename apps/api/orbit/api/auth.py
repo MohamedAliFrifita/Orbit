@@ -4,23 +4,26 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from orbit.api.deps import get_current_user, get_db
 from orbit.config import settings
-from orbit.db.models import User,Client
+from orbit.db.models import User, Client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ── bcrypt utilisé directement (contourne l'incompatibilité passlib 1.7 / bcrypt 4.x)
+# bcrypt tronque à 72 bytes — on le fait explicitement pour être déterministe.
+_MAX_PW_BYTES = 72
 
 
-# ── Schemas ──────────────────────────────────────────────────────────────────
+# ── Schemas ───────────────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -37,18 +40,31 @@ class UserOut(BaseModel):
     email: str
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _to_bytes(password: str) -> bytes:
+    """Encode et tronque le mot de passe à 72 bytes (limite bcrypt)."""
+    return password.encode("utf-8")[:_MAX_PW_BYTES]
+
 
 def _hash(password: str) -> str:
-    return pwd_ctx.hash(password)
+    """Hash un mot de passe avec bcrypt (work factor 12)."""
+    hashed = _bcrypt.hashpw(_to_bytes(password), _bcrypt.gensalt(rounds=12))
+    return hashed.decode("utf-8")
 
 
 def _verify(plain: str, hashed: str) -> bool:
-    return pwd_ctx.verify(plain, hashed)
+    """Vérifie un mot de passe contre son hash bcrypt."""
+    try:
+        return _bcrypt.checkpw(_to_bytes(plain), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def _create_token(user_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.jwt_access_expire_minutes
+    )
     return jwt.encode(
         {"sub": user_id, "exp": expire},
         settings.jwt_secret_key,
@@ -56,10 +72,12 @@ def _create_token(user_id: str) -> str:
     )
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> UserOut:
+async def register(
+    body: RegisterRequest, db: AsyncSession = Depends(get_db)
+) -> UserOut:
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email déjà utilisé")

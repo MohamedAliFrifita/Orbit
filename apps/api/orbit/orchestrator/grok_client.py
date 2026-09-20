@@ -1,20 +1,17 @@
-"""Client xAI GROK — compatible API OpenAI."""
+"""Client Groq pour l'Orchestrateur (GPT-OSS-120B)."""
 
 from __future__ import annotations
 
-from openai import AsyncOpenAI
-
+from groq import AsyncGroq
 from orbit.config import settings
 
-GROK_MODEL = "grok-2-latest"
-_client: AsyncOpenAI | None = None
+# Modèle Groq utilisé pour le Planning et l'Orchestration
+GROK_MODEL = "openai/gpt-oss-120b"
+_client: AsyncGroq | None = None
 
 
-def get_grok_client() -> AsyncOpenAI:
+def get_grok_client() -> AsyncGroq:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(
-            api_key=settings.grok_api_key,
-            base_url="https://api.x.ai/v1",
-        )
+        _client = AsyncGroq(api_key=settings.groq_api_key)
     return _client

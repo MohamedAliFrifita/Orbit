@@ -19,7 +19,7 @@ from orbit.config import settings
 from orbit.prompts import load_prompt
 from orbit.schemas.judge import JudgeInput, JudgeVerdict
 
-MISTRAL_MODEL = "mistral-large-latest"
+MISTRAL_MODEL = "codestral-2508"
 _client: Mistral | None = None
 
 

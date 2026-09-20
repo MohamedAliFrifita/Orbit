@@ -189,8 +189,8 @@ async def _run_stage_with_judge(
 
         elif verdict.verdict == "REWORK":
             rework_target = _REWORK_TARGET.get(stage)
-            if rework_target and state.retry_counts.get(f"rework_{stage.value}", 0) < 1:
-                state.retry_counts[f"rework_{stage.value}"] = 1
+            if rework_target and state.retry_counts.get(f"rework_{stage.value}", 0) < 2:
+                state.retry_counts[f"rework_{stage.value}"] += 1
                 state.stage = rework_target
                 await publish({
                     "event": "rework",
@@ -248,6 +248,15 @@ async def advance(
                 state.stage = RunStage.CLASSIFIER
                 await publish({"event": "stage_completed", "stage": "analyst",
                                "exhibitor_count": len(output)})
+            elif output is None:
+                # Échec extraction (aucun exposant trouvé) -> retour au choix d'événement
+                state.stage = RunStage.AWAITING_SELECTION
+                state.selected_event = None
+                await publish({
+                    "event": "returned_to_selection",
+                    "stage": "awaiting_selection",
+                    "reason": state.error or "Aucun exposant trouvé sur ce salon. Choisissez un autre événement."
+                })
 
         case RunStage.CLASSIFIER:
             await publish({"event": "stage_started", "stage": "classifier"})

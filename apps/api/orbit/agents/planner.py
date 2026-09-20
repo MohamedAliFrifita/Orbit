@@ -32,17 +32,27 @@ async def run(
         return _fallback_sort(exhibitors)
 
 
-def _fallback_sort(exhibitors: list[ClassificationOutput]) -> list[ItineraryStop]:
-    relevant = [e for e in exhibitors if e.category != "irrelevant"]
-    ranked = sorted(relevant, key=lambda e: e.potential_score, reverse=True)
+def _fallback_sort(exhibitors: list) -> list[ItineraryStop]:
+    def _cat(e):
+        return e.category if hasattr(e, "category") else e.get("category", "irrelevant")
+
+    def _score(e):
+        return e.potential_score if hasattr(e, "potential_score") else e.get("potential_score", 0.0)
+
+    def _val(e, key, default=""):
+        return getattr(e, key) if hasattr(e, key) else e.get(key, default)
+
+    relevant = [e for e in exhibitors if _cat(e) != "irrelevant"]
+    ranked = sorted(relevant, key=_score, reverse=True)
+
     return [
         ItineraryStop(
             order=i + 1,
-            exhibitor_id=e.exhibitor_id,
-            exhibitor_name=e.name,
-            booth=e.booth,
+            exhibitor_id=_val(e, "exhibitor_id", f"ex_{i+1}"),
+            exhibitor_name=_val(e, "name", "Inconnu"),
+            booth=_val(e, "booth", None),
             time_slot=None,
-            objective=_objective(e.category),
+            objective=_objective(_cat(e)),
             justification="[Fallback] Planner LLM indisponible — ordre par potential_score.",
         )
         for i, e in enumerate(ranked)

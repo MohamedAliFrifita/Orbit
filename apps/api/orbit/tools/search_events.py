@@ -49,8 +49,7 @@ import os
 #   Google Cloud, pas un vrai blocage).
 # - Confirme via le dashboard aistudio.google.com/rate-limit : gemini-2.5-flash
 #   a un quota actif sur ce compte (5 RPM / 250K TPM / 20 RPD) avec des appels
-#   deja reussis - c'est le modele a utiliser.
-MODEL_NAME = os.environ.get("ORBIT_SCOUT_MODEL")
+MODEL_NAME = os.environ.get("ORBIT_SCOUT_MODEL") or "gemini-3.5-flash-lite"
 
 _JSON_ARRAY_PATTERN = re.compile(r"\[.*\]", re.DOTALL)
 
@@ -103,11 +102,14 @@ def _extract_grounded_domains(response) -> set[str]:
     return domains
 
 
-def _extract_json_array(text: str) -> list[dict]:
+def _extract_json_array(text: str | None) -> list[dict]:
+    if not text:
+        raise ValueError("Aucun texte reçu dans la réponse du modèle.")
     match = _JSON_ARRAY_PATTERN.search(text)
     if not match:
         raise ValueError("Aucun tableau JSON trouve dans la reponse.")
     return json.loads(match.group(0))
+
 
 
 def _domain_of(url: str) -> str:
@@ -179,17 +181,49 @@ async def _call_and_parse(
     to_thread delegue l'appel bloquant a un thread separe, laissant la boucle
     asyncio libre de gerer d'autres requetes pendant ce temps.
     """
-    response = await asyncio.to_thread(
-        client.models.generate_content,
-        model=MODEL_NAME,
-        contents=prompt,
-        config=config,
-    )
+    try:
+
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL_NAME,
+            contents=prompt,
+            config=config,
+        )
+    except Exception as exc:
+        # Si la recherche web (grounding tool) échoue (ex: 429 quota search gratuit),
+        # retenter sans l'outil de recherche plutôt que de faire échouer le Scout
+        if getattr(config, "tools", None):
+            fallback_config = types.GenerateContentConfig(
+                system_instruction=config.system_instruction,
+            )
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=MODEL_NAME,
+                contents=prompt,
+                config=fallback_config,
+            )
+        else:
+            raise
+
+    # Si la réponse avec grounding a renvoyé un texte vide ou None, retenter également sans outils
+    text = getattr(response, "text", None)
+    if not text and getattr(config, "tools", None):
+        fallback_config = types.GenerateContentConfig(
+            system_instruction=config.system_instruction,
+        )
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL_NAME,
+            contents=prompt,
+            config=fallback_config,
+        )
+        text = getattr(response, "text", None)
 
     try:
-        raw_items = _extract_json_array(response.text)
+        raw_items = _extract_json_array(text)
         events = [EventCandidate.model_validate(item) for item in raw_items]
-    except (ValueError, json.JSONDecodeError, ValidationError):
+    except (ValueError, json.JSONDecodeError, ValidationError, TypeError):
         return None, response
 
     return events, response
+

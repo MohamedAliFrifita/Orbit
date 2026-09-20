@@ -22,14 +22,16 @@ dependencies = [
     "mistralai>=1.0",        # client Mistral (Judge)
     # ── Auth ──
     "python-jose[cryptography]>=3.3",
-    "passlib[bcrypt]>=1.7",
+    "passlib>=1.7",          # utilisé uniquement pour les utilitaires non-bcrypt
+    "bcrypt>=4.0",           # appelé directement — contourne l'incompatibilité passlib/bcrypt 4.x
     "python-multipart>=0.0.9",
+
     # ── SSE ──
     "sse-starlette>=2.1",
     # ── Redis async ──
     "redis>=5.0",
     # ── PDF ──
-    "weasyprint>=62.0",
+    "reportlab>=4.2",
     "jinja2>=3.1",
 ]
 
